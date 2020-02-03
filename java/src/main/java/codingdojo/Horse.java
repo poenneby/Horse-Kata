@@ -16,7 +16,6 @@ public class Horse {
             List<FilterMetadata> filters,
             Optional<SortMetadata> maybeSortMetadata,
             PaginationMetadata paginationMetadata) {
-        // TODO: filter horse table using filters
 
         // TODO: sort horse table using sortMetadata
 
@@ -24,15 +23,43 @@ public class Horse {
 
         // Map all the data to Strings for the front end
         List<List<String>> tableDataAsStrings = tableData
-            .stream()
-            .map(row -> row
                 .stream()
-                .map(Object::toString)
-                .collect(Collectors.toList())
-            )
-            .collect(Collectors.toList());
+                .filter(row -> {
+                    return filters.isEmpty() || applyFiltersOnRow(headers, filters, row);
+                })
+                .map(row -> row
+                        .stream()
+                        .map(Object::toString)
+                        .collect(Collectors.toList())
+                )
+                .collect(Collectors.toList());
 
-        return new PaginatedTable(headers, tableDataAsStrings, tableData.size());
+        maybeSortMetadata.ifPresent(sortMetadata -> {
+            tableDataAsStrings.sort((o1, o2) -> {
+                if (sortMetadata.sortOrder.equals("Ascending")) {
+                    return o1.get(2).compareTo(o2.get(2));
+                }
+                return o2.get(2).compareTo(o1.get(2));
+            });
+
+        });
+
+        return new PaginatedTable(headers, tableDataAsStrings, tableDataAsStrings.size());
+    }
+
+
+
+    private static boolean applyFiltersOnRow(List<String> headers, List<FilterMetadata> filters, List<Object> row) {
+        return filters.stream()
+                .anyMatch(filter -> {
+                            int indexOfColumn = getColumnIndex(headers, filter);
+                            return row.get(indexOfColumn).equals(filter.value);
+                        }
+                );
+    }
+
+    private static int getColumnIndex(List<String> headers, FilterMetadata filter) {
+        return headers.indexOf(filter.columnHeader);
     }
 }
 
